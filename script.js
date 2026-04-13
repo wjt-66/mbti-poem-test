@@ -96,10 +96,26 @@ const data = {
 
 let current = 0;
 const count = { E: 0, I: 0, S: 0, N: 0, T: 0, F: 0, J: 0, P: 0 };
+const answers = {}; // 存储每道题的答案
 
 function render() {
     const app = document.getElementById('app');
-    if (current >= data.questions.length) {
+
+    // 显示欢迎页面
+    if (current === 0) {
+        app.innerHTML = `
+            <div class="welcome-container">
+                <h1>你的MBTI与哪位中国诗人相似？</h1>
+                <p class="welcome-text">本测试包含20道题目，通过分析您的性格特质，为您匹配最相似的古代诗人。</p>
+                <p class="welcome-text">请根据您的真实情况选择最符合的选项。</p>
+                <div class="start-btn" onclick="current = 1; render();">开始测试</div>
+            </div>
+        `;
+        return;
+    }
+
+    // 显示结果页面
+    if (current > data.questions.length) {
         const type = [
             count.E > count.I ? 'E' : 'I',
             count.S > count.N ? 'S' : 'N',
@@ -111,7 +127,7 @@ function render() {
 
         app.innerHTML = `
             <div class="result-container">
-                <h2>你的MBTI类型:${type}</h2>
+                <h2>你的MBTI类型：${type}</h2>
                 <div class="poet-match">
                     <h3>与你最相似的诗人：${poetInfo.poet}</h3>
                     <p class="poet-description">${poetInfo.description}</p>
@@ -122,20 +138,121 @@ function render() {
         return;
     }
 
-    const q = data.questions[current];
+    // 显示题目页面
+    const q = data.questions[current - 1];
+    const isFirstQuestion = current === 1;
+    const isLastQuestion = current === data.questions.length;
+
+    let navigationButtons = '';
+
+    if (isFirstQuestion) {
+        navigationButtons = `
+            <div class="nav-buttons">
+                <div class="nav-btn next-btn" onclick="nextQuestion()">下一题</div>
+            </div>
+        `;
+    } else if (isLastQuestion) {
+        navigationButtons = `
+            <div class="nav-buttons">
+                <div class="nav-btn prev-btn" onclick="prevQuestion()">上一题</div>
+                <div class="nav-btn submit-btn" onclick="submitTest()">提交</div>
+            </div>
+        `;
+    } else {
+        navigationButtons = `
+            <div class="nav-buttons">
+                <div class="nav-btn prev-btn" onclick="prevQuestion()">上一题</div>
+                <div class="nav-btn next-btn" onclick="nextQuestion()">下一题</div>
+            </div>
+        `;
+    }
+
     app.innerHTML = `
-        <div class="progress">${current+1}/20</div>
-        <div class="question">${q.text}</div>
-        <div class="option" onclick="select('A')">A 同意</div>
-        <div class="option" onclick="select('B')">B 不同意</div>
+        <div class="question-container">
+            <div class="progress">${current}/20</div>
+            <div class="question">${q.text}</div>
+            <div class="options">
+                <div class="option ${answers[current] === 'A' ? 'selected' : ''}" onclick="selectOption('A')">A 同意</div>
+                <div class="option ${answers[current] === 'B' ? 'selected' : ''}" onclick="selectOption('B')">B 不同意</div>
+            </div>
+            ${navigationButtons}
+        </div>
     `;
 }
 
-function select(ans) {
-    const q = data.questions[current];
+function selectOption(ans) {
+    answers[current] = ans;
+    const q = data.questions[current - 1];
     count[ans === 'A' ? q.scoreA : q.scoreB]++;
-    current++;
     render();
 }
 
+function nextQuestion() {
+    // 检查当前题目是否已回答
+    if (!answers[current]) {
+        showAlert("请先选择答案再继续");
+        return;
+    }
+
+    if (current < data.questions.length) {
+        current++;
+        render();
+    }
+}
+
+function prevQuestion() {
+    if (current > 1) {
+        current--;
+        render();
+    }
+}
+
+function submitTest() {
+    // 检查最后一题是否已回答
+    if (!answers[current]) {
+        showAlert("请先选择答案再提交");
+        return;
+    }
+
+    // 检查是否所有题目都已回答
+    const unansweredQuestions = [];
+    for (let i = 1; i <= data.questions.length; i++) {
+        if (!answers[i]) {
+            unansweredQuestions.push(i);
+        }
+    }
+
+    if (unansweredQuestions.length > 0) {
+        showAlert(`还有 ${unansweredQuestions.length} 道题目未回答：第 ${unansweredQuestions.join(', ')} 题`);
+        return;
+    }
+
+    current = data.questions.length + 1;
+    render();
+}
+
+function showAlert(message) {
+    // 创建提示框
+    const alertBox = document.createElement('div');
+    alertBox.className = 'alert-box';
+    alertBox.innerHTML = `
+        <div class="alert-content">
+            <div class="alert-icon">⚠️</div>
+            <div class="alert-message">${message}</div>
+            <div class="alert-close" onclick="this.parentElement.parentElement.remove()">×</div>
+        </div>
+    `;
+
+    // 添加到页面
+    document.body.appendChild(alertBox);
+
+    // 3秒后自动消失
+    setTimeout(() => {
+        if (alertBox.parentElement) {
+            alertBox.remove();
+        }
+    }, 3000);
+}
+
+// 初始化渲染
 render();
